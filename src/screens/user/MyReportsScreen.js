@@ -17,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useThemeApp } from "../../theme/ThemeContext";
-import {API_ORIGIN} from "../../services/api";
+import { API_BASE_URL, API_ORIGIN } from "../../services/api";
 
 const PROFILE_KEY = "local_user_profile";
 const SESSION_KEY = "local_session_v1";
@@ -113,10 +113,10 @@ function fmtCoord(n) {
 function pickUserId(profile, session) {
   return (
     profile?.userId ||
+    profile?.UserId ||
     profile?.id ||
     profile?.Id ||
-    profile?.user?.id ||
-    profile?.user?.Id ||
+    session?.userId ||
     session?.userId ||
     session?.user?.id ||
     session?.user?.Id ||
@@ -125,7 +125,6 @@ function pickUserId(profile, session) {
 }
 
 function normalizeReport(row) {
-  // يدعم اختلاف أسماء الأعمدة بين SQL و API
   const id = row?.Id || row?.id;
 
   const departmentName =
@@ -149,9 +148,6 @@ function normalizeReport(row) {
     row?.lat ??
     row?.Latitude ??
     row?.latitude ??
-    row?.Location?.Lat ??
-    row?.location?.lat ??
-    row?.location?.latitude ??
     null;
 
   const lng =
@@ -161,22 +157,12 @@ function normalizeReport(row) {
     row?.lng ??
     row?.Longitude ??
     row?.longitude ??
-    row?.Location?.Lng ??
-    row?.location?.lng ??
-    row?.location?.longitude ??
     null;
 
   const rejectionReason =
     row?.RejectionReason || row?.rejectionReason || row?.RejectReason || row?.rejectReason || null;
 
-  // الميديا: نتوقع API يرجّع Media: [{Type, FileUrl, ...}]
-  const mediaArr =
-    row?.Media ||
-    row?.media ||
-    row?.Attachments ||
-    row?.attachments ||
-    [];
-
+  const mediaArr = row?.Media || row?.media || row?.Attachments || row?.attachments || [];
   const media = Array.isArray(mediaArr) ? mediaArr : [];
 
   return {
@@ -208,39 +194,28 @@ function deptIconByName(name) {
   return "alert-circle-outline";
 }
 
+// ✅ المسار الصحيح عندك في الباك-إند:
+// GET /api/reports/my/:userId
 async function fetchMyReportsFromAPI({ userId, token }) {
- 
-  const tries = [
-    `${API_BASE_URL}/reports/my/${userId}`,
-    `${API_BASE_URL}/reports/user/${userId}`,
-    `${API_BASE_URL}/reports/${userId}`, 
-  ];
+  const url = `${API_BASE_URL}/reports/my/${userId}`;
 
-  let lastErr = null;
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
 
-  for (const url of tries) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+  const data = await res.json().catch(() => null);
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        const msg = data?.message || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      if (!Array.isArray(data)) return [];
-      return data.map(normalizeReport).filter((x) => x.id);
-    } catch (e) {
-      lastErr = e;
-    }
+  if (!res.ok) {
+    const msg = data?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
   }
 
-  throw lastErr || new Error("فشل جلب البلاغات");
+  if (!Array.isArray(data)) return [];
+  return data.map(normalizeReport).filter((x) => x.id && x.id !== "undefined");
 }
 
 export default function MyReportsScreen({ navigation }) {
@@ -271,10 +246,7 @@ export default function MyReportsScreen({ navigation }) {
     }
 
     const list = await fetchMyReportsFromAPI({ userId, token });
-
-    // ترتيب تنازلي
     list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-
     setReports(list);
   }, []);
 
@@ -351,14 +323,7 @@ export default function MyReportsScreen({ navigation }) {
           </Text>
         )}
 
-        {String(item.status || "").toLowerCase() === "rejected" && item.rejectionReason ? (
-          <View style={styles.rejectRow}>
-            <Ionicons name="alert-circle-outline" size={16} color="#B00020" />
-            <Text style={styles.rejectReason} numberOfLines={1}>
-              {R.rejectedReasonPrefix} {item.rejectionReason}
-            </Text>
-          </View>
-        ) : null}
+        
 
         {hasAnyMedia ? (
           <View style={styles.attachmentHint}>
@@ -373,8 +338,7 @@ export default function MyReportsScreen({ navigation }) {
       </TouchableOpacity>
     );
   };
-
-  // تفاصيل الميديا (أول مرفق فقط للعرض مثل تصميمك الحالي)
+ 
   const mediaList = Array.isArray(selected?.media) ? selected.media : [];
   const firstMedia = mediaList.length ? mediaList[0] : null;
   const firstType = String(firstMedia?.Type || firstMedia?.type || "").toLowerCase();
@@ -382,8 +346,7 @@ export default function MyReportsScreen({ navigation }) {
   const hasMedia = !!fileUrl;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      {/* Header داخلي */}
+     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>{R.title}</Text>
@@ -416,8 +379,7 @@ export default function MyReportsScreen({ navigation }) {
         ListEmptyComponent={<Text style={[styles.empty, { color: colors.subText }]}>{emptyText}</Text>}
       />
 
-      {/* Details Modal */}
-      <Modal visible={detailsOpen} transparent animationType="fade" onRequestClose={closeDetails}>
+       <Modal visible={detailsOpen} transparent animationType="fade" onRequestClose={closeDetails}>
         <View style={styles.modalWrap}>
           <Pressable style={styles.modalBackdrop} onPress={closeDetails} />
 
@@ -438,8 +400,7 @@ export default function MyReportsScreen({ navigation }) {
                 <Ionicons name="close" size={20} color={colors.text} />
               </TouchableOpacity>
             </View>
-
-            {/* Basic Info */}
+ 
             <View style={[styles.modalSection, { backgroundColor: colors.soft, borderColor: colors.border }]}>
               <KVRow k={R.department} v={selected?.departmentName || "—"} colors={colors} />
               <KVRow k={R.date} v={formatDate(selected?.createdAt)} colors={colors} />
@@ -459,8 +420,7 @@ export default function MyReportsScreen({ navigation }) {
                 </View>
               ) : null}
             </View>
-
-            {/* Location */}
+ 
             <View style={[styles.kvCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <View style={styles.kvHeader}>
                 <View style={[styles.iconPillSmall, { backgroundColor: colors.soft, borderColor: colors.border }]}>
@@ -472,8 +432,7 @@ export default function MyReportsScreen({ navigation }) {
               <KVRow k={R.latitude} v={fmtCoord(selected?.location?.latitude)} colors={colors} />
               <KVRow k={R.longitude} v={fmtCoord(selected?.location?.longitude)} colors={colors} />
             </View>
-
-            {/* Attachments */}
+ 
             <View style={[styles.kvCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <View style={styles.kvHeader}>
                 <View style={[styles.iconPillSmall, { backgroundColor: colors.soft, borderColor: colors.border }]}>
@@ -506,9 +465,7 @@ export default function MyReportsScreen({ navigation }) {
                         size={16}
                         color={colors.text}
                       />
-                      <Text style={[styles.kvVal, { color: colors.text }]}>
-                        {firstType === "video" ? R.video : R.image}
-                      </Text>
+                      <Text style={[styles.kvVal, { color: colors.text }]}>{firstType === "video" ? R.video : R.image}</Text>
                     </View>
                   </View>
 
@@ -519,17 +476,14 @@ export default function MyReportsScreen({ navigation }) {
                   ) : (
                     <View style={[styles.videoStub, { borderColor: colors.border, backgroundColor: colors.soft }]}>
                       <Ionicons name="videocam-outline" size={22} color={colors.text} />
-                      <Text style={[styles.videoStubText, { color: colors.subText }]}>
-                        فيديو محدد ✅ (المعاينة نضيفها لاحقًا)
-                      </Text>
+                      <Text style={[styles.videoStubText, { color: colors.subText }]}>فيديو محدد ✅ (المعاينة نضيفها لاحقًا)</Text>
                     </View>
                   )}
                 </>
               ) : null}
-            </View>
+             </View>
 
-            {/* Description */}
-            <View style={[styles.modalDescBox, { borderColor: colors.border, backgroundColor: colors.card }]}>
+             <View style={[styles.modalDescBox, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={[styles.modalDescTitle, { color: colors.text }]}>{R.description}</Text>
               <Text style={[styles.modalDesc, { color: colors.subText }]}>{selected?.description || "—"}</Text>
             </View>
@@ -656,4 +610,4 @@ const styles = StyleSheet.create({
 
   modalBtn: { marginTop: 12, paddingVertical: 14, borderRadius: 16, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   modalBtnText: { color: "#fff", fontWeight: "900" },
-});
+ });

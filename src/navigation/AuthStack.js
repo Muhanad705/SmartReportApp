@@ -19,7 +19,7 @@ export default function AuthStack() {
       <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
 
-      {/* وجهات بعد تسجيل الدخول حسب الدور */}
+      
       <Stack.Screen name="UserStack" component={UserStack} />
       <Stack.Screen name="AdminStack" component={AdminStack} />
       <Stack.Screen name="ManagerStack" component={ManagerStack} />

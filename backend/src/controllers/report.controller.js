@@ -21,10 +21,33 @@ function normalizeMediaArray(media) {
     .filter((m) => (m.type === "image" || m.type === "video") && !!m.fileUrl);
 }
 
-// =======================
-// POST /reports
-// body: { userId, departmentId, description, latitude, longitude, media: [{type,fileUrl}] }
-// =======================
+
+async function insertNotification(tx, { userId, reportId, type, title, message }) {
+  try {
+    const uid = String(userId || "").trim();
+    const rid = reportId ? String(reportId).trim() : null;
+
+    if (!isGuid(uid)) return; 
+
+    const req = new sql.Request(tx);
+    req.input("UserId", sql.UniqueIdentifier, uid);
+    req.input("ReportId", sql.UniqueIdentifier, isGuid(rid || "") ? rid : null); 
+    req.input("Type", sql.NVarChar(30), String(type || "info"));
+    req.input("Title", sql.NVarChar(150), String(title || ""));
+    req.input("Message", sql.NVarChar(sql.MAX), String(message || "")); 
+
+    await req.query(`
+      INSERT INTO Notifications
+        (Id, UserId, ReportId, Type, Title, Message, IsRead, CreatedAt)
+      VALUES
+        (NEWID(), @UserId, @ReportId, @Type, @Title, @Message, 0, SYSDATETIME())
+    `);
+  } catch (err) {
+    console.log("Notification insert skipped:", err.message);
+  }
+}
+
+
 exports.createReport = async (req, res) => {
   const { userId, departmentId, description, latitude, longitude, lat, lng, media } = req.body || {};
 
@@ -44,19 +67,19 @@ exports.createReport = async (req, res) => {
     return res.status(400).json({ message: "إحداثيات الموقع غير صحيحة" });
   }
 
-  let pool;
-  const tx = new sql.Transaction();
+  let tx;
 
   try {
-    pool = await poolPromise;
-    await tx.begin(pool);
+    const pool = await poolPromise;
+
+    tx = new sql.Transaction(pool);
+    await tx.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
 
     // 1) إنشاء البلاغ + رجّع Id
-    const insertReportReq = new sql.Request(tx);
-    const insertReportResult = await insertReportReq
+    const insertReportResult = await new sql.Request(tx)
       .input("UserId", sql.UniqueIdentifier, UserId)
       .input("DepartmentId", sql.UniqueIdentifier, DepartmentId)
-      .input("Description", sql.NVarChar, Description)
+      .input("Description", sql.NVarChar(sql.MAX), Description)
       .input("Lat", sql.Float, Lat)
       .input("Lng", sql.Float, Lng)
       .query(`
@@ -68,74 +91,72 @@ exports.createReport = async (req, res) => {
       `);
 
     const ReportId = insertReportResult?.recordset?.[0]?.ReportId;
-    if (!ReportId) {
-      throw new Error("فشل إنشاء البلاغ");
-    }
+    if (!ReportId) throw new Error("فشل إنشاء البلاغ");
 
-    // 2) حفظ الميديا (إن وجدت)
+   
     if (MediaList.length) {
       for (const m of MediaList) {
-        const r = new sql.Request(tx);
-        await r
-          .input("Id", sql.UniqueIdentifier, ReportId)
-          .input("Type", sql.NVarChar, m.type)
-          .input("FileUrl", sql.NVarChar, m.fileUrl)
+        await new sql.Request(tx)
+          .input("ReportId", sql.UniqueIdentifier, ReportId)
+          .input("Type", sql.NVarChar(20), m.type)
+          .input("FileUrl", sql.NVarChar(sql.MAX), m.fileUrl)
           .query(`
             INSERT INTO Media
               (Id, ReportId, Type, FileUrl, CreatedAt)
             VALUES
-              (NEWID(), @Id, @Type, @FileUrl, SYSDATETIME())
+              (NEWID(), @ReportId, @Type, @FileUrl, SYSDATETIME())
           `);
       }
     }
 
-    // 3) (اختياري) سجل الحالة في التاريخ لو جدول ReportStatusHistory موجود
-    // إذا جدولك غير موجود احذف هذا البلوك
+    // 3) تاريخ الحالة (اختياري)
     try {
-      const h = new sql.Request(tx);
-      await h
+      await new sql.Request(tx)
         .input("ReportId", sql.UniqueIdentifier, ReportId)
-        .input("OldStatus", sql.NVarChar, "new")
-        .input("NewStatus", sql.NVarChar, "new")
+        .input("OldStatus", sql.NVarChar(20), "new")
+        .input("NewStatus", sql.NVarChar(20), "new")
         .input("ChangedBy", sql.UniqueIdentifier, UserId)
-        .input("Reason", sql.NVarChar, null)
+        .input("Reason", sql.NVarChar(sql.MAX), null)
         .query(`
           INSERT INTO ReportStatusHistory
             (Id, ReportId, OldStatus, NewStatus, ChangedBy, Reason, ChangedAt)
           VALUES
             (NEWID(), @ReportId, @OldStatus, @NewStatus, @ChangedBy, @Reason, SYSDATETIME())
         `);
-    } catch (_) {
-      // تجاهل لو الجدول غير موجود
-    }
+    } catch (_) {}
+
+  
+    await insertNotification(tx, {
+      userId: UserId,
+      reportId: ReportId,
+      type: "report_created",
+      title: "تم استلام البلاغ ",
+      message: "تم إرسال البلاغ بنجاح وسيتم مراجعته قريباً",
+    });
 
     await tx.commit();
 
     return res.status(201).json({
-      message: "تم إرسال البلاغ بنجاح ✅",
+      message: "تم إرسال البلاغ بنجاح",
       reportId: ReportId,
     });
   } catch (err) {
     try {
-      await tx.rollback();
+      if (tx) await tx.rollback();
     } catch {}
     console.error("CREATE REPORT ERROR:", err);
     return res.status(500).json({ message: err?.message || "Server error" });
   }
 };
 
-// =======================
-// GET /reports/my/:userId
-// يرجّع DepartmentName + Media[]
-// =======================
+
 exports.getMyReports = async (req, res) => {
   const userId = String(req.params?.userId || "").trim();
   if (!isGuid(userId)) return res.status(400).json({ message: "userId غير صحيح" });
 
   try {
     const pool = await poolPromise;
-
-    // 1) reports + department name
+ 
     const r1 = await pool
       .request()
       .input("UserId", sql.UniqueIdentifier, userId)
@@ -149,7 +170,7 @@ exports.getMyReports = async (req, res) => {
           R.LocationLat,
           R.LocationLng,
           R.Status,
-          R.RejectionReason,
+
           R.CreatedAt,
           R.UpdatedAt,
           R.UpdatedBy
@@ -161,9 +182,7 @@ exports.getMyReports = async (req, res) => {
 
     const reports = r1.recordset || [];
     if (!reports.length) return res.json([]);
-
-    // 2) media لكل reports
-    // نستخدم IN مع GUIDs بشكل آمن (بارامترات)
+ 
     const ids = reports.map((x) => x.Id).filter(Boolean);
 
     const req2 = pool.request();
@@ -201,10 +220,7 @@ exports.getMyReports = async (req, res) => {
     return res.status(500).json({ message: err?.message || "Server error" });
   }
 };
-
-// =======================
-// GET /reports/department/:departmentId
-// =======================
+ 
 exports.getDepartmentReports = async (req, res) => {
   const departmentId = String(req.params?.departmentId || "").trim();
   if (!isGuid(departmentId)) return res.status(400).json({ message: "departmentId غير صحيح" });
@@ -225,7 +241,7 @@ exports.getDepartmentReports = async (req, res) => {
           R.LocationLat,
           R.LocationLng,
           R.Status,
-          R.RejectionReason,
+
           R.CreatedAt,
           R.UpdatedAt,
           R.UpdatedBy
@@ -275,91 +291,99 @@ exports.getDepartmentReports = async (req, res) => {
     return res.status(500).json({ message: err?.message || "Server error" });
   }
 };
-
-// =======================
-// PATCH /reports/:id/status
-// body: { status, employeeId, reason? }
-// =======================
+ 
 exports.updateStatus = async (req, res) => {
   const id = String(req.params?.id || "").trim();
-  const { status, employeeId, reason } = req.body || {};
+  const { status, employeeId } = req.body || {};
 
   const Status = String(status || "").toLowerCase().trim();
   const EmployeeId = String(employeeId || "").trim();
-  const Reason = normStr(reason) || null;
-
+ 
   if (!isGuid(id)) return res.status(400).json({ message: "Report id غير صحيح" });
   if (!ALLOWED_STATUS.has(Status)) return res.status(400).json({ message: "Status غير صحيح" });
   if (!isGuid(EmployeeId)) return res.status(400).json({ message: "employeeId غير صحيح" });
 
-  let pool;
-  const tx = new sql.Transaction();
+  let tx;
 
   try {
-    pool = await poolPromise;
-    await tx.begin(pool);
+    const pool = await poolPromise;
 
-    // اقرأ الحالة القديمة
+    tx = new sql.Transaction(pool);
+    await tx.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
+
+    
     const r0 = await new sql.Request(tx)
       .input("Id", sql.UniqueIdentifier, id)
-      .query(`SELECT TOP 1 Status FROM Reports WHERE Id = @Id`);
+      .query(`SELECT TOP 1 Status, UserId FROM Reports WHERE Id = @Id`);
 
     const oldStatus = r0.recordset?.[0]?.Status || null;
+    const reportOwnerId = r0.recordset?.[0]?.UserId ? String(r0.recordset[0].UserId) : null;
+
     if (!oldStatus) {
       await tx.rollback();
       return res.status(404).json({ message: "البلاغ غير موجود" });
     }
 
-    // حدّث البلاغ
-    const upd = new sql.Request(tx);
-    upd.input("Id", sql.UniqueIdentifier, id);
-    upd.input("Status", sql.NVarChar, Status);
-    upd.input("UpdatedBy", sql.UniqueIdentifier, EmployeeId);
+    await new sql.Request(tx)
+      .input("Id", sql.UniqueIdentifier, id)
+      .input("Status", sql.NVarChar(20), Status)
+      .input("UpdatedBy", sql.UniqueIdentifier, EmployeeId)
+      .query(`
+        UPDATE Reports
+        SET Status = @Status,
+            UpdatedAt = SYSDATETIME(),
+            UpdatedBy = @UpdatedBy
+        WHERE Id = @Id
+      `);
 
-    // لو rejected خزّن السبب
-    const setReasonSql =
-      Status === "rejected"
-        ? ", RejectionReason = @Reason"
-        : ", RejectionReason = NULL";
-
-    if (Status === "rejected") {
-      upd.input("Reason", sql.NVarChar, Reason || "—");
-    }
-
-    await upd.query(`
-      UPDATE Reports
-      SET Status = @Status,
-          UpdatedAt = SYSDATETIME(),
-          UpdatedBy = @UpdatedBy
-          ${setReasonSql}
-      WHERE Id = @Id
-    `);
-
-    // (اختياري) سجل في التاريخ
+    // سجل التاريخ (اختياري)
     try {
       await new sql.Request(tx)
         .input("ReportId", sql.UniqueIdentifier, id)
-        .input("OldStatus", sql.NVarChar, String(oldStatus))
-        .input("NewStatus", sql.NVarChar, Status)
+        .input("OldStatus", sql.NVarChar(20), String(oldStatus))
+        .input("NewStatus", sql.NVarChar(20), Status)
         .input("ChangedBy", sql.UniqueIdentifier, EmployeeId)
-        .input("Reason", sql.NVarChar, Status === "rejected" ? (Reason || "—") : null)
+        .input("Reason", sql.NVarChar(sql.MAX), null)
         .query(`
           INSERT INTO ReportStatusHistory
             (Id, ReportId, OldStatus, NewStatus, ChangedBy, Reason, ChangedAt)
           VALUES
             (NEWID(), @ReportId, @OldStatus, @NewStatus, @ChangedBy, @Reason, SYSDATETIME())
         `);
-    } catch (_) {
-      // تجاهل لو الجدول غير موجود
+    } catch (_) {}
+
+ 
+    if (reportOwnerId && isGuid(reportOwnerId)) {
+      let title = "تحديث حالة البلاغ";
+      let message = "تم تحديث حالة البلاغ";
+
+      if (Status === "accepted") {
+        title = "تم حل البلاغ ✅";
+        message = "تمت معالجة البلاغ بنجاح";
+      } else if (Status === "rejected") {
+        title = "تم رفض البلاغ ❌";
+        message = "تم رفض البلاغ من الجهة المختصة";
+      } else if (Status === "in_progress") {
+        title = "جاري معالجة البلاغ ⏳";
+        message = "تم البدء في معالجة البلاغ";
+      }
+
+      await insertNotification(tx, {
+        userId: reportOwnerId,
+        reportId: id,
+        type: "status_changed",
+        title,
+        message,
+      });
     }
 
     await tx.commit();
-    return res.json({ message: "تم تحديث الحالة ✅" });
+    return res.json({ message: "تم تحديث الحالة" });
   } catch (err) {
     try {
-      await tx.rollback();
+      if (tx) await tx.rollback();
     } catch {}
     console.error("UPDATE STATUS ERROR:", err);
     return res.status(500).json({ message: err?.message || "Server error" });
   }
-};
+ };

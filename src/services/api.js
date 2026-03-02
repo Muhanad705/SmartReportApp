@@ -1,20 +1,33 @@
 // src/services/api.js
-import { Platform } from "react-native";
-
-// IP جهازك من ipconfig
-const DEV_LAN_IP = "192.168.100.152";
+ 
+// IP جهازك (من ipconfig)
+const DEV_LAN_IP = "192.168.100.144";
 const PORT = 4000;
 
-// base url للـ API
+// base url للـ API (لاحظ /api)
 export const API_BASE_URL = `http://${DEV_LAN_IP}:${PORT}/api`;
 
 // origin لعرض الصور /uploads
 export const API_ORIGIN = `http://${DEV_LAN_IP}:${PORT}`;
 
-// helper
+// helper: يرجّع { res, data } حتى لو الرد مو JSON
 export async function apiFetch(path, options = {}) {
-  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const url = `${API_BASE_URL}${cleanPath}`;
+
   const res = await fetch(url, options);
-  const data = await res.json().catch(() => ({}));
+
+  // حاول JSON، وإذا فشل رجّع نص
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    try {
+      data = { raw: await res.text() };
+    } catch {
+      data = {};
+    }
+  }
+
   return { res, data };
-}
+ }

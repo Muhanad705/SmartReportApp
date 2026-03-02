@@ -38,8 +38,7 @@ const UI_DEPS = [
   { key: "sewage", title: "الصرف الصحي", desc: "طفح، تسربات، وانسدادات الصرف.", icon: "water-outline" },
 ];
 
-// تطبيع اسم الجهة عشان نطابق DB مع UI (يحذف المسافات الزائدة ويصير lowercase)
-const norm = (s) =>
+ const norm = (s) =>
   String(s || "")
     .trim()
     .replace(/\s+/g, " ")
@@ -81,12 +80,10 @@ export default function HomeScreen({ navigation }) {
 
   const toggleMenu = () => (menuOpen ? closeMenu() : openMenu());
 
-  // ✅ جلب الجهات من السيرفر (مع دعم توكن لو endpoint محمي)
-  const fetchDepartments = async (signal) => {
+   const fetchDepartments = async (signal) => {
     if (!API_BASE_URL) throw new Error("API_BASE_URL غير مضبوط");
 
-    // token اختياري
-    let token = null;
+     let token = null;
     try {
       const sessionStr = await AsyncStorage.getItem(SESSION_KEY);
       const session = sessionStr ? JSON.parse(sessionStr) : null;
@@ -168,13 +165,9 @@ export default function HomeScreen({ navigation }) {
     };
   }, []);
 
-  // ✅ ربط UI_DEPS مع DB Departments بالاسم (أقوى)
-  const departments = useMemo(() => {
+   const departments = useMemo(() => {
     const list = Array.isArray(deps) ? deps : [];
-
-    // بعض قواعد البيانات تسميها Name وبعضها DepartmentName.. خلّها مرنة
-    const pickName = (x) => x?.Name ?? x?.name ?? x?.DepartmentName ?? x?.departmentName ?? "";
-
+     const pickName = (x) => x?.Name ?? x?.name ?? x?.DepartmentName ?? x?.departmentName ?? "";
     const byName = new Map(list.map((x) => [norm(pickName(x)), x]));
 
     return UI_DEPS.map((ui) => {
@@ -201,12 +194,18 @@ export default function HomeScreen({ navigation }) {
 
   const logout = async () => {
     closeMenu();
-    await AsyncStorage.multiRemove(["isLoggedIn", "userRole", "local_session_v1", "local_user_profile"]);
 
-    // ✅ Reset صح حتى لو داخل Stack داخلي
-    const parent = navigation.getParent?.();
-    if (parent?.reset) {
-      parent.reset({ index: 0, routes: [{ name: "Auth" }] });
+    await AsyncStorage.multiRemove([
+      "isLoggedIn",
+      "userRole",
+      "local_session_v1",
+      "local_user_profile",
+    ]);
+
+   
+    const root = navigation.getParent?.("Root");
+    if (root?.reset) {
+      root.reset({ index: 0, routes: [{ name: "Auth" }] });
     } else {
       navigation.reset({ index: 0, routes: [{ name: "Auth" }] });
     }
@@ -349,7 +348,10 @@ export default function HomeScreen({ navigation }) {
             {departments.map((d) => (
               <TouchableOpacity
                 key={d.key}
-                style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: d.departmentId ? 1 : 0.75 }]}
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.card, borderColor: colors.border, opacity: d.departmentId ? 1 : 0.75 },
+                ]}
                 onPress={() => goReport(d)}
                 activeOpacity={0.9}
               >
@@ -653,4 +655,4 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoutText: { fontWeight: "900", color: "#B00020" },
-});
+ });

@@ -4,7 +4,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// تأكد مجلد uploads موجود
+
 const UPLOAD_DIR = path.join(__dirname, "../../uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -19,17 +19,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB
+  limits: { fileSize: 30 * 1024 * 1024 }, 
 });
 
-router.post("/single", upload.single("file"), async (req, res) => {
+function uploadHandler(req, res) {
   try {
     if (!req.file) return res.status(400).json({ message: "لا يوجد ملف" });
 
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-    const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    
+    const fileUrl = `/uploads/${req.file.filename}`;
 
-    // نوع مبسط
     const mime = String(req.file.mimetype || "").toLowerCase();
     const type = mime.startsWith("video/") ? "video" : "image";
 
@@ -38,6 +37,11 @@ router.post("/single", upload.single("file"), async (req, res) => {
     console.error("UPLOAD ERROR:", err);
     return res.status(500).json({ message: err?.message || "Server error" });
   }
-});
+}
 
-module.exports = router;
+
+router.post("/", upload.single("file"), uploadHandler);
+
+router.post("/single", upload.single("file"), uploadHandler);
+
+ module.exports = router;

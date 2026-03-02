@@ -2,11 +2,19 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const sql = require("mssql");
+const jwt = require("jsonwebtoken");
 const poolPromise = require("../../db");
 
 // مساعدات
 const normEmail = (v) => String(v || "").trim().toLowerCase();
 const onlyDigits = (v) => String(v || "").replace(/[^\d]/g, "");
+const normRole = (v) => String(v || "user").trim().toLowerCase();
+
+function ensureJwtSecret() {
+  const s = String(process.env.JWT_SECRET || "").trim();
+  if (!s) throw new Error("JWT_SECRET is missing in .env");
+  return s;
+}
 
 exports.register = async (req, res) => {
   try {
@@ -18,40 +26,52 @@ exports.register = async (req, res) => {
     const NationalId = onlyDigits(nationalId);
     const Password = String(password || "");
 
-    if (!FullName || FullName.length < 6) return res.status(400).json({ message: "الاسم غير صحيح" });
+    if (!FullName || FullName.length < 6)
+      return res.status(400).json({ message: "الاسم غير صحيح" });
     if (!Email) return res.status(400).json({ message: "البريد مطلوب" });
     if (!Phone) return res.status(400).json({ message: "رقم الجوال مطلوب" });
     if (!Password) return res.status(400).json({ message: "كلمة المرور مطلوبة" });
 
     const pool = await poolPromise;
 
+    // تحقق بريد (مطبع)
     const check = await pool
       .request()
-      .input("Email", sql.NVarChar, Email)
-      .query("SELECT TOP 1 UserId FROM dbo.UsersProfile WHERE Email = @Email");
+      .input("Email", sql.NVarChar(150), Email)
+      .query(`
+        SELECT TOP 1 UserId
+        FROM dbo.UsersProfile
+        WHERE LOWER(LTRIM(RTRIM(Email))) = @Email
+      `);
 
-    if (check.recordset.length) return res.status(409).json({ message: "البريد مستخدم من قبل" });
+    if (check.recordset.length)
+      return res.status(409).json({ message: "البريد مستخدم من قبل" });
 
     const hash = await bcrypt.hash(Password, 10);
     const Role = "user";
 
     await pool
       .request()
-      .input("FullName", sql.NVarChar, FullName)
-      .input("Phone", sql.NVarChar, Phone)
-      .input("Role", sql.NVarChar, Role)
-      .input("Email", sql.NVarChar, Email)
-      .input("NationalId", sql.NVarChar, NationalId || null)
-      .input("PasswordHash", sql.NVarChar, hash)
+      .input("FullName", sql.NVarChar(100), FullName)
+      .input("Phone", sql.NVarChar(20), Phone)
+      .input("Role", sql.NVarChar(20), Role)
+      .input("Email", sql.NVarChar(150), Email)
+      .input("NationalId", sql.NVarChar(20), NationalId || null)
+      .input("PasswordHash", sql.NVarChar(255), hash)
       .query(`
         INSERT INTO dbo.UsersProfile
-          ([UserId], [FullName], [Phone], [Role], [DepartmentId], [IsActive], [CreatedAt], [Email], [NationalId], [PasswordHash])
+          ([UserId], [FullName], [Phone], [Role], [DepartmentId], [IsActive], [CreatedAt], [Email], [NationalId], [PasswordHash], [NotificationsEnabled])
         VALUES
-          (NEWID(), @FullName, @Phone, @Role, NULL, 1, SYSDATETIME(), @Email, @NationalId, @PasswordHash)
+          (NEWID(), @FullName, @Phone, @Role, NULL, 1, SYSDATETIME(), @Email, @NationalId, @PasswordHash, 1)
       `);
 
     return res.status(201).json({ message: "تم إنشاء الحساب بنجاح" });
   } catch (err) {
+    // لو عندك Unique Index في DB على الإيميل: رجّع 409 بدل 500
+    if (err?.number === 2601 || err?.number === 2627) {
+      return res.status(409).json({ message: "البريد مستخدم من قبل" });
+    }
+
     console.error("REGISTER ERROR:", err);
     return res.status(500).json({ message: err?.message || "Server error" });
   }
@@ -63,28 +83,37 @@ exports.login = async (req, res) => {
     const Email = normEmail(email);
     const Password = String(password || "");
 
-    if (!Email || !Password) return res.status(400).json({ message: "أدخل البريد وكلمة المرور" });
+    if (!Email || !Password)
+      return res.status(400).json({ message: "أدخل البريد وكلمة المرور" });
 
     const pool = await poolPromise;
 
     const r = await pool
       .request()
-      .input("Email", sql.NVarChar, Email)
+      .input("Email", sql.NVarChar(150), Email)
       .query(`
         SELECT TOP 1
           UserId, FullName, Phone, Role, DepartmentId, IsActive, Email, NationalId, PasswordHash
         FROM dbo.UsersProfile
-        WHERE Email = @Email
+        WHERE LOWER(LTRIM(RTRIM(Email))) = @Email
       `);
 
     const u = r.recordset?.[0];
     if (!u) return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
-    if (u.IsActive === false || u.IsActive === 0) return res.status(403).json({ message: "الحساب موقوف" });
+    if (u.IsActive === false || u.IsActive === 0)
+      return res.status(403).json({ message: "الحساب موقوف" });
 
-    const ok = await bcrypt.compare(Password, u.PasswordHash);
+    const ok = await bcrypt.compare(Password, String(u.PasswordHash || ""));
     if (!ok) return res.status(401).json({ message: "بيانات الدخول غير صحيحة" });
 
-    const token = "dummy-token";
+    const role = normRole(u.Role);
+    const jwtSecret = ensureJwtSecret();
+
+   const token = jwt.sign(
+  { userId: u.UserId, role, departmentId: u.DepartmentId },
+  jwtSecret,
+  { expiresIn: "7d" }
+);
 
     return res.json({
       token,
@@ -94,7 +123,7 @@ exports.login = async (req, res) => {
         email: u.Email,
         phone: u.Phone,
         nationalId: u.NationalId,
-        role: u.Role,
+        role,
         departmentId: u.DepartmentId,
       },
     });
@@ -112,17 +141,21 @@ exports.forgotPassword = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // 1) تأكد البريد موجود
+    // تأكد البريد موجود (مطبع)
     const r = await pool
       .request()
-      .input("Email", sql.NVarChar, Email)
-      .query(`SELECT TOP 1 UserId, IsActive FROM dbo.UsersProfile WHERE Email = @Email`);
+      .input("Email", sql.NVarChar(150), Email)
+      .query(`
+        SELECT TOP 1 UserId, IsActive
+        FROM dbo.UsersProfile
+        WHERE LOWER(LTRIM(RTRIM(Email))) = @Email
+      `);
 
     const u = r.recordset?.[0];
     if (!u) return res.status(404).json({ message: "البريد غير موجود" });
-    if (u.IsActive === false || u.IsActive === 0) return res.status(403).json({ message: "الحساب موقوف" });
+    if (u.IsActive === false || u.IsActive === 0)
+      return res.status(403).json({ message: "الحساب موقوف" });
 
-    // 2) أنشئ توكن (15 دقيقة)
     const resetToken = crypto.randomBytes(24).toString("hex");
     const tokenHash = await bcrypt.hash(resetToken, 10);
     const expiresMinutes = 15;
@@ -137,9 +170,8 @@ exports.forgotPassword = async (req, res) => {
         VALUES (NEWID(), @UserId, @TokenHash, @ExpiresAt, SYSDATETIME())
       `);
 
-    // للتجربة فقط: نرجّع التوكن (لأن الإيميل الحقيقي مو مضاف)
     return res.json({
-      message: "تم إنشاء طلب استعادة كلمة المرور ✅",
+      message: "تم إنشاء طلب استعادة كلمة المرور",
       resetToken,
       expiresInMinutes: expiresMinutes,
     });
@@ -161,17 +193,21 @@ exports.resetPassword = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // 1) المستخدم
+    // المستخدم (مطبع)
     const uRes = await pool
       .request()
-      .input("Email", sql.NVarChar, Email)
-      .query(`SELECT TOP 1 UserId, IsActive FROM dbo.UsersProfile WHERE Email = @Email`);
+      .input("Email", sql.NVarChar(150), Email)
+      .query(`
+        SELECT TOP 1 UserId, IsActive
+        FROM dbo.UsersProfile
+        WHERE LOWER(LTRIM(RTRIM(Email))) = @Email
+      `);
 
     const u = uRes.recordset?.[0];
     if (!u) return res.status(404).json({ message: "المستخدم غير موجود" });
     if (u.IsActive === false || u.IsActive === 0) return res.status(403).json({ message: "الحساب موقوف" });
 
-    // 2) آخر توكن صالح وغير مستخدم
+    // آخر توكن صالح
     const tRes = await pool
       .request()
       .input("UserId", sql.UniqueIdentifier, u.UserId)
@@ -187,11 +223,9 @@ exports.resetPassword = async (req, res) => {
     const t = tRes.recordset?.[0];
     if (!t) return res.status(400).json({ message: "لا يوجد توكن صالح. اطلب توكن جديد." });
 
-    // 3) تحقق من التوكن
     const ok = await bcrypt.compare(Token, String(t.TokenHash));
     if (!ok) return res.status(400).json({ message: "رمز الاستعادة غير صحيح" });
 
-    // 4) تحديث كلمة المرور + تعليم التوكن كمستخدم (Transaction)
     const newHash = await bcrypt.hash(PW, 10);
 
     const tx = new sql.Transaction(pool);
@@ -200,7 +234,7 @@ exports.resetPassword = async (req, res) => {
     try {
       await new sql.Request(tx)
         .input("UserId", sql.UniqueIdentifier, u.UserId)
-        .input("PasswordHash", sql.NVarChar, newHash)
+        .input("PasswordHash", sql.NVarChar(255), newHash)
         .query(`
           UPDATE dbo.UsersProfile
           SET PasswordHash = @PasswordHash
@@ -221,7 +255,7 @@ exports.resetPassword = async (req, res) => {
       throw e;
     }
 
-    return res.json({ message: "تم تحديث كلمة المرور بنجاح " });
+    return res.json({ message: "تم تحديث كلمة المرور بنجاح" });
   } catch (err) {
     console.error("RESET PASSWORD ERROR:", err);
     return res.status(500).json({ message: err?.message || "Server error" });

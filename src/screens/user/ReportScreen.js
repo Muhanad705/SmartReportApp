@@ -32,10 +32,32 @@ function bytesToMB(bytes) {
   return bytes / (1024 * 1024);
 }
 
+function isApiReady() {
+  return typeof API_BASE_URL === "string" && API_BASE_URL.trim().startsWith("http");
+}
+
+function pickUserId(profile, session) {
+  return (
+    profile?.userId ||
+    profile?.id ||
+    profile?.Id ||
+    profile?.UserId ||
+    profile?.user?.id ||
+    profile?.user?.Id ||
+    session?.userId ||
+    session?.id ||
+    session?.Id ||
+    session?.UserId ||
+    session?.user?.id ||
+    session?.user?.Id ||
+    null
+  );
+}
 
 
-// ✅ رفع ملف للسيرفر وإرجاع {fileUrl, type}
 async function uploadMediaToServer({ uri, type }, token) {
+  if (!isApiReady()) throw new Error("API_BASE_URL غير مضبوط");
+
   const form = new FormData();
 
   const ext = type === "video" ? "mp4" : "jpg";
@@ -50,8 +72,9 @@ async function uploadMediaToServer({ uri, type }, token) {
   const res = await fetch(`${API_BASE_URL}/uploads`, {
     method: "POST",
     headers: {
-      // لا تضع Content-Type مع FormData في RN
+     
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: "application/json",
     },
     body: form,
   });
@@ -59,32 +82,17 @@ async function uploadMediaToServer({ uri, type }, token) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.message || "Upload failed");
 
-  // نتوقع يرجع: { fileUrl: "...", type: "image"|"video" }
+ 
   return data;
 }
-
-function pickUserId(profile, session) {
-  // حاول نلقط الـ userId من أي مكان منطقي
-  return (
-    profile?.userId ||
-    profile?.id ||
-    profile?.Id ||
-    profile?.user?.id ||
-    profile?.user?.Id ||
-    session?.userId ||
-    session?.user?.id ||
-    session?.user?.Id ||
-    null
-  );
-}
-
+ 
 export default function ReportScreen({ navigation, route }) {
   const { colors, mode } = useThemeApp();
   const isDark = mode === "dark";
 
   const params = route?.params || {};
-  const departmentId = params.departmentId;       // GUID من Home
-  const departmentName = params.departmentName;   // للعرض
+  const departmentId = params.departmentId;
+  const departmentName = params.departmentName;
 
   const [loading, setLoading] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -101,6 +109,7 @@ export default function ReportScreen({ navigation, route }) {
   useEffect(() => {
     const getCurrentLocation = async () => {
       if (Platform.OS === "web") return;
+
       setLocLoading(true);
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -127,7 +136,7 @@ export default function ReportScreen({ navigation, route }) {
     getCurrentLocation();
   }, []);
 
-  const pickMedia = async (type) => {
+  const pickMedia = async (wantedType) => {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -137,11 +146,11 @@ export default function ReportScreen({ navigation, route }) {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes:
-          type === "image"
+          wantedType === "image"
             ? ImagePicker.MediaTypeOptions.Images
             : ImagePicker.MediaTypeOptions.Videos,
-        quality: type === "image" ? 0.8 : undefined,
-        allowsEditing: type === "image",
+        quality: wantedType === "image" ? 0.8 : undefined,
+        allowsEditing: wantedType === "image",
       });
 
       if (result.canceled) return;
@@ -150,8 +159,8 @@ export default function ReportScreen({ navigation, route }) {
       if (!asset?.uri) return;
 
       const pickedType = asset.type; // "image" | "video"
-      if (type !== pickedType) {
-        Alert.alert("تنبيه", type === "image" ? "اختر صورة فقط." : "اختر فيديو فقط.");
+      if (wantedType !== pickedType) {
+        Alert.alert("تنبيه", wantedType === "image" ? "اختر صورة فقط." : "اختر فيديو فقط.");
         return;
       }
 
@@ -175,6 +184,7 @@ export default function ReportScreen({ navigation, route }) {
   };
 
   const validate = () => {
+    if (!isApiReady()) return "API_BASE_URL غير مضبوط.";
     if (!departmentId) return "الجهة غير محددة (departmentId ناقص).";
     if (!coords) return "ما قدرنا نحدد موقعك. جرّب مرة ثانية.";
     if (!description.trim()) return "اكتب وصف البلاغ (مطلوب).";
@@ -209,30 +219,46 @@ export default function ReportScreen({ navigation, route }) {
           token
         );
 
+        const finalType = uploaded?.type || mediaLocal.type;
+        const finalUrl = uploaded?.fileUrl;
+
+        if (!finalUrl) throw new Error("الرفع تم لكن ما رجع fileUrl من السيرفر.");
+
+        
         mediaPayload = [
           {
-            type: uploaded.type || mediaLocal.type, // image / video
-            fileUrl: uploaded.fileUrl,              // مهم لجدول Media
+            type: finalType,
+            fileUrl: finalUrl,
+            Type: finalType,
+            FileUrl: finalUrl,
           },
         ];
       }
 
       // 2) أنشئ البلاغ
-      // ✅ ملاحظة مهمة: الباك اند عندك يتوقع lat/lng وليس latitude/longitude
+      const payload = {
+        userId,
+        departmentId,
+        description: description.trim(),
+
+        // ✅ نرسل الاثنين لتفادي اختلافات الباك-إند
+        lat: coords.latitude,
+        lng: coords.longitude,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+
+        media: mediaPayload,
+        Media: mediaPayload,
+      };
+
       const res = await fetch(`${API_BASE_URL}/reports`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          userId,
-          departmentId,
-          description: description.trim(),
-          lat: coords.latitude,
-          lng: coords.longitude,
-          media: mediaPayload,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -268,15 +294,29 @@ export default function ReportScreen({ navigation, route }) {
         longitudeDelta: 0.02,
       };
 
+  const updateLocation = async () => {
+    if (Platform.OS === "web") return;
+
+    setLocLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("الموقع", "فعّل إذن الموقع عشان نحدد موقع البلاغ.");
+        return;
+      }
+
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setCoords({ latitude: current.coords.latitude, longitude: current.coords.longitude });
+    } catch {
+      Alert.alert("خطأ", "ما قدرنا نحدّث موقعك.");
+    } finally {
+      setLocLoading(false);
+    }
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.header, { borderColor: colors.border, backgroundColor: colors.card }]}>
-         
-        </View>
-
         <View style={[styles.banner, { backgroundColor: isDark ? "#0F172A" : "#111827" }]}>
           <View style={styles.bannerIcon}>
             <Ionicons name="location-outline" size={20} color="#FFFFFF" />
@@ -376,18 +416,7 @@ export default function ReportScreen({ navigation, route }) {
 
           <TouchableOpacity
             style={[styles.mediaIconBtn, { flex: 1.2, backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={async () => {
-              if (Platform.OS === "web") return;
-              setLocLoading(true);
-              try {
-                const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                setCoords({ latitude: current.coords.latitude, longitude: current.coords.longitude });
-              } catch {
-                Alert.alert("خطأ", "ما قدرنا نحدّث موقعك.");
-              } finally {
-                setLocLoading(false);
-              }
-            }}
+            onPress={updateLocation}
             activeOpacity={0.9}
           >
             <Ionicons name="locate-outline" size={22} color={colors.text} />
@@ -416,7 +445,7 @@ export default function ReportScreen({ navigation, route }) {
               <View style={[styles.videoPlaceholder, { backgroundColor: colors.soft, borderColor: colors.border }]}>
                 <Ionicons name="videocam-outline" size={22} color={colors.text} />
                 <Text style={[styles.videoPlaceholderText, { color: colors.subText }]}>
-                  فيديو محدد ✅ (المعاينة نضيفها لاحقًا)
+                  فيديو محدد  (المعاينة نضيفها لاحقًا)
                 </Text>
               </View>
             )}
@@ -433,7 +462,7 @@ export default function ReportScreen({ navigation, route }) {
         ) : null}
 
         <TouchableOpacity
-          style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+          style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: loading ? 0.9 : 1 }]}
           onPress={onSubmit}
           disabled={loading}
           activeOpacity={0.9}
@@ -457,37 +486,6 @@ export default function ReportScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { padding: 16, paddingBottom: 28 },
-
-  topBar: {
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  backText: { fontWeight: "900" },
-  pageTitle: { fontSize: 16, fontWeight: "900" },
-
-  header: {
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  headerCenter: { alignItems: "center" },
-  title: { fontSize: 16, fontWeight: "900" },
-  subtitle: { marginTop: 4, fontSize: 12, fontWeight: "700", textAlign: "center", lineHeight: 18 },
 
   banner: {
     borderRadius: 18,
