@@ -1,17 +1,30 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { useThemeApp } from "../theme/ThemeContext";
+
+import EmployeeHome from "../screens/employee/EmployeeHome";
+import EmployeeReports from "../screens/employee/EmployeeReports";
+import EmployeeReportDetails from "../screens/employee/EmployeeReportDetails";
 
 const Stack = createNativeStackNavigator();
 
-function AdminHome() {
-  return <View><Text>Admin Home</Text></View>;
-}
+export default function EmployeeStack() {
+  const { colors } = useThemeApp();
 
-export default function AdminStack() {
+  const common = useMemo(
+    () => ({
+      headerStyle: { backgroundColor: colors.card },
+      headerTintColor: colors.text,
+      contentStyle: { backgroundColor: colors.bg },
+    }),
+    [colors]
+  );
+
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="empHome" component={AdminHome} />
+    <Stack.Navigator screenOptions={common}>
+      <Stack.Screen name="EmployeeHome" component={EmployeeHome} options={{ title: "" }} />
+      <Stack.Screen name="EmployeeReports" component={EmployeeReports} options={{ title: "بلاغات الجهة" }} />
+      <Stack.Screen name="EmployeeReportDetails" component={EmployeeReportDetails} options={{ title: "تفاصيل البلاغ" }} />
     </Stack.Navigator>
   );
 }

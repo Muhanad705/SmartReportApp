@@ -9,26 +9,67 @@ const departmentRoutes = require("./src/routes/department.routes");
 const uploadRoutes = require("./src/routes/upload.routes");
 const reportRoutes = require("./src/routes/report.routes");
 const notificationRoutes = require("./src/routes/notification.routes");
-const adminRoutes = require("./src/routes/admin.routes"); 
+const adminRoutes = require("./src/routes/admin.routes");
 const managerRoutes = require("./src/routes/manager.routes");
+const employeeRoutes = require("./src/routes/employee.routes");
 
 const app = express();
 
-app.use(cors());
+// --------------------
+// Middlewares
+// --------------------
+app.use(
+  cors({
+    origin: true, 
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
- app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// --------------------
+// Static: uploads
+// --------------------
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// --------------------
+// Routes
+// --------------------
+app.get("/", (_, res) => res.send("API is running ✅"));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/admin", adminRoutes); 
+app.use("/api/admin", adminRoutes);
 app.use("/api/manager", managerRoutes);
+app.use("/api/employee", employeeRoutes);
 
-app.get("/", (_, res) => res.send("API is running ✅"));
+// --------------------
+// 404 handler
+// --------------------
+app.use((req, res) => {
+  return res.status(404).json({
+    message: "Route not found",
+    path: req.originalUrl,
+  });
+});
 
+// --------------------
+// Error handler (آخر شيء)
+// --------------------
+app.use((err, req, res, next) => {
+  console.error("SERVER ERROR:", err);
+  const status = err?.statusCode || err?.status || 500;
+  return res.status(status).json({
+    message: err?.message || "Server error",
+  });
+});
+
+// --------------------
+// Listen
+// --------------------
 const PORT = process.env.PORT || 4000;
- app.listen(PORT, () => console.log(`✅ API running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`✅ API running on http://localhost:${PORT}`));

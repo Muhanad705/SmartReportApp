@@ -5,6 +5,7 @@ import { useThemeApp } from "../theme/ThemeContext";
 import ManagerDashboard from "../screens/manager/ManagerDashboard";
 import ManagerReports from "../screens/manager/ManagerReports";
 import ManagerReportDetails from "../screens/manager/ManagerReportDetails";
+import ManagerEmployees from "../screens/manager/ManagerEmployees"; 
 
 const Stack = createNativeStackNavigator();
 
@@ -21,10 +22,34 @@ export default function ManagerStack() {
   );
 
   return (
-    <Stack.Navigator screenOptions={common}>
-      <Stack.Screen name="ManagerDashboard" component={ManagerDashboard} options={{ title: "لوحة المدير" }} />
-      <Stack.Screen name="ManagerReports" component={ManagerReports} options={{ title: "بلاغات الجهة" }} />
-      <Stack.Screen name="ManagerReportDetails" component={ManagerReportDetails} options={{ title: "تفاصيل البلاغ" }} />
+    <Stack.Navigator
+      initialRouteName="ManagerDashboard"  
+      screenOptions={common}
+    >
+      <Stack.Screen
+        name="ManagerDashboard"
+        component={ManagerDashboard}
+        options={{ title: "" }}
+      />
+
+      <Stack.Screen
+        name="ManagerReports"
+        component={ManagerReports}
+        options={{ title: "بلاغات الجهة" }}
+      />
+
+      <Stack.Screen
+        name="ManagerReportDetails"
+        component={ManagerReportDetails}
+        options={{ title: "تفاصيل البلاغ" }}
+      />
+
+     
+      <Stack.Screen
+        name="ManagerEmployees"
+        component={ManagerEmployees}
+        options={{ title: "الموظفون" }}
+      />
     </Stack.Navigator>
   );
 }

@@ -5,7 +5,7 @@ const sql = require("mssql");
 const jwt = require("jsonwebtoken");
 const poolPromise = require("../../db");
 
-// مساعدات
+
 const normEmail = (v) => String(v || "").trim().toLowerCase();
 const onlyDigits = (v) => String(v || "").replace(/[^\d]/g, "");
 const normRole = (v) => String(v || "user").trim().toLowerCase();
@@ -34,7 +34,7 @@ exports.register = async (req, res) => {
 
     const pool = await poolPromise;
 
-    // تحقق بريد (مطبع)
+    
     const check = await pool
       .request()
       .input("Email", sql.NVarChar(150), Email)
@@ -67,7 +67,7 @@ exports.register = async (req, res) => {
 
     return res.status(201).json({ message: "تم إنشاء الحساب بنجاح" });
   } catch (err) {
-    // لو عندك Unique Index في DB على الإيميل: رجّع 409 بدل 500
+    
     if (err?.number === 2601 || err?.number === 2627) {
       return res.status(409).json({ message: "البريد مستخدم من قبل" });
     }

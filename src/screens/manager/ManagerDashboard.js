@@ -8,9 +8,11 @@ import {
   Alert,
   ScrollView,
   RefreshControl,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import { CommonActions } from "@react-navigation/native";
 import { useThemeApp } from "../../theme/ThemeContext";
 import { managerApi } from "../../services/managerApi";
 
@@ -20,8 +22,8 @@ const PROFILE_KEY = "local_user_profile";
 export default function ManagerDashboard({ navigation }) {
   const { colors } = useThemeApp();
 
-  const [loading, setLoading] = useState(true); // تحميل أول مرة
-  const [refreshing, setRefreshing] = useState(false); // سحب للتحديث
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ total: 0, in_progress: 0, accepted: 0, rejected: 0 });
 
   const load = useCallback(async (isRefresh = false) => {
@@ -43,15 +45,12 @@ export default function ManagerDashboard({ navigation }) {
     load(false);
   }, [load]);
 
-  // ✅ يتحقق إن الشاشة موجودة قبل ما يعرض زرها / وين يودّي بعد الخروج
-  const navInfo = useMemo(() => {
+  // ✅ يظهر الأزرار فقط لو الشاشات موجودة في Stack الحالي
+  const canGo = useMemo(() => {
     const state = navigation.getState?.();
     const names = (state?.routeNames || state?.routes?.map((r) => r.name) || []).filter(Boolean);
     const set = new Set(names);
-    return {
-      has: (name) => set.has(name),
-      routeNames: names,
-    };
+    return (name) => set.has(name);
   }, [navigation]);
 
   const logout = useCallback(() => {
@@ -62,32 +61,30 @@ export default function ManagerDashboard({ navigation }) {
         style: "destructive",
         onPress: async () => {
           try {
-            // امسح كل شيء يخص الجلسة
-            await AsyncStorage.multiRemove([SESSION_KEY, PROFILE_KEY, "userRole"]);
-            await AsyncStorage.setItem("isLoggedIn", "false");
+            await AsyncStorage.multiRemove([
+              "isLoggedIn",
+              "userRole",
+              SESSION_KEY,
+              PROFILE_KEY,
+              "last_login_email",
+            ]);
 
-            // ✅ reset للتنقل عشان ما يعلق على الستاك الحالي
-            // جرّب Login أول، وإذا ما موجود جرّب AuthStack، وإذا ما موجود ارجع للخلف
-            const target =
-              navInfo.has("Login") ? "Login" :
-              navInfo.has("AuthStack") ? "AuthStack" :
-              null;
-
-            if (target) {
-              navigation.reset({ index: 0, routes: [{ name: target }] });
-            } else {
-              // fallback
-              navigation.goBack?.();
-            }
-          } catch (e) {
+            const rootNav = navigation.getParent?.() || navigation;
+            rootNav.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Auth" }],
+              })
+            );
+          } catch {
             Alert.alert("خطأ", "فشل تسجيل الخروج");
           }
         },
       },
     ]);
-  }, [navigation, navInfo]);
+  }, [navigation]);
 
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
 
   return (
     <ScrollView
@@ -95,50 +92,59 @@ export default function ManagerDashboard({ navigation }) {
       contentContainerStyle={{ paddingBottom: 18 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} />}
     >
-      {/* Header */}
-      <View style={s.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>لوحة المدير</Text>
-          <Text style={s.subtitle}>نظرة سريعة على بلاغات جهتك</Text>
+      {/* Hero Header (بدون أرقام عشان ما يتكرر) */}
+      <View style={s.hero}>
+        <View style={s.heroTop}>
+          <View style={s.heroIcon}>
+            <Ionicons name="speedometer-outline" size={20} color={colors.text} />
+          </View>
+
+          <TouchableOpacity style={s.logoutBtn} onPress={logout} activeOpacity={0.9}>
+            <Ionicons name="log-out-outline" size={18} color={colors.text} />
+            <Text style={s.logoutText}>خروج</Text>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={s.iconBtn} onPress={logout} accessibilityLabel="Logout">
-          <Ionicons name="log-out-outline" size={20} color={colors.text} />
-        </TouchableOpacity>
+        <Text style={s.heroTitle}>لوحة المدير</Text>
+        <Text style={s.heroSub}>نظرة سريعة على بلاغات جهتك — اسحب للتحديث</Text>
       </View>
 
       {/* Stats */}
+      <Text style={s.sectionTitle}>الإحصائيات</Text>
+
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator />
+          <Text style={s.loadingText}>جارِ تحميل البيانات…</Text>
         </View>
       ) : (
         <View style={s.grid}>
-          <StatCard title="الإجمالي" value={stats.total} icon="stats-chart" colors={colors} />
-          <StatCard title="قيد المعالجة" value={stats.in_progress} icon="time" colors={colors} />
-          <StatCard title="ناجحة" value={stats.accepted} icon="checkmark-circle" colors={colors} />
-          <StatCard title="مرفوضة" value={stats.rejected} icon="close-circle" colors={colors} />
+          <StatCard title="الإجمالي" value={stats.total} icon="stats-chart-outline" colors={colors} />
+          <StatCard title="قيد المعالجة" value={stats.in_progress} icon="time-outline" colors={colors} />
+          <StatCard title="ناجحة" value={stats.accepted} icon="checkmark-circle-outline" colors={colors} />
+          <StatCard title="مرفوضة" value={stats.rejected} icon="close-circle-outline" colors={colors} />
         </View>
       )}
 
       {/* Actions */}
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>الإجراءات</Text>
+      <Text style={[s.sectionTitle, { marginTop: 18 }]}>الإجراءات</Text>
 
-        {navInfo.has("ManagerReports") ? (
-          <PrimaryBtn
+      <View style={s.actionsCard}>
+        {canGo("ManagerReports") ? (
+          <ActionRow
             title="بلاغات الجهة"
-            subtitle="عرض البلاغات وتصفية الحالات"
+            subtitle="عرض البلاغات + التصفية + البحث"
             icon="document-text-outline"
             onPress={() => navigation.navigate("ManagerReports")}
             colors={colors}
+            primary
           />
         ) : null}
 
-        {navInfo.has("ManagerEmployees") ? (
-          <SecondaryBtn
+        {canGo("ManagerEmployees") ? (
+          <ActionRow
             title="الموظفون"
-            subtitle="إدارة موظفي الجهة"
+            subtitle="إضافة موظف / إيقاف موظف"
             icon="people-outline"
             onPress={() => navigation.navigate("ManagerEmployees")}
             colors={colors}
@@ -152,41 +158,40 @@ export default function ManagerDashboard({ navigation }) {
 function StatCard({ title, value, icon, colors }) {
   const s = styles(colors);
   return (
-    <View style={s.card}>
-      <View style={s.cardTop}>
-        <View style={s.iconBubble}>
+    <View style={s.statCard}>
+      <View style={s.statTop}>
+        <View style={s.statIcon}>
           <Ionicons name={icon} size={18} color={colors.text} />
         </View>
-        <Text style={s.cardTitle}>{title}</Text>
+        <Text style={s.statTitle}>{title}</Text>
       </View>
-      <Text style={s.cardValue}>{String(value ?? 0)}</Text>
+
+      <Text style={s.statValue}>{String(value ?? 0)}</Text>
+
+      <View style={s.barTrack}>
+        <View style={s.barFill} />
+      </View>
     </View>
   );
 }
 
-function PrimaryBtn({ title, subtitle, icon, onPress, colors }) {
+function ActionRow({ title, subtitle, icon, onPress, colors, primary }) {
   const s = styles(colors);
   return (
-    <TouchableOpacity style={s.primaryBtn} onPress={onPress}>
-      <Ionicons name={icon} size={22} color="#fff" />
-      <View style={{ flex: 1 }}>
-        <Text style={s.primaryTitle}>{title}</Text>
-        <Text style={s.primarySub}>{subtitle}</Text>
+    <TouchableOpacity
+      style={[s.actionRow, primary ? s.actionRowPrimary : null]}
+      activeOpacity={0.9}
+      onPress={onPress}
+    >
+      <View style={[s.actionIcon, primary ? s.actionIconPrimary : null]}>
+        <Ionicons name={icon} size={20} color={primary ? "#fff" : colors.text} />
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#fff" />
-    </TouchableOpacity>
-  );
-}
 
-function SecondaryBtn({ title, subtitle, icon, onPress, colors }) {
-  const s = styles(colors);
-  return (
-    <TouchableOpacity style={s.secondaryBtn} onPress={onPress}>
-      <Ionicons name={icon} size={22} color={colors.text} />
       <View style={{ flex: 1 }}>
-        <Text style={s.secondaryTitle}>{title}</Text>
-        <Text style={s.secondarySub}>{subtitle}</Text>
+        <Text style={s.actionTitle}>{title}</Text>
+        <Text style={s.actionSub}>{subtitle}</Text>
       </View>
+
       <Ionicons name="chevron-forward" size={18} color={colors.subText} />
     </TouchableOpacity>
   );
@@ -196,27 +201,48 @@ const styles = (colors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
 
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      marginBottom: 14,
-    },
-    title: { color: colors.text, fontSize: 20, fontWeight: "900" },
-    subtitle: { color: colors.subText, marginTop: 4, fontWeight: "700" },
-
-    iconBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
+    hero: {
       backgroundColor: colors.card,
       borderWidth: 1,
       borderColor: colors.border,
+      borderRadius: 22,
+      padding: 16,
+      ...Platform.select({
+        ios: { shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
+        android: { elevation: 2 },
+      }),
     },
+    heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    heroIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      backgroundColor: colors.soft,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    logoutBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      backgroundColor: colors.soft,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    logoutText: { color: colors.text, fontWeight: "900" },
+
+    heroTitle: { marginTop: 12, color: colors.text, fontSize: 22, fontWeight: "900" },
+    heroSub: { marginTop: 6, color: colors.subText, fontWeight: "800", lineHeight: 18 },
+
+    sectionTitle: { marginTop: 16, color: colors.text, fontWeight: "900", fontSize: 14 },
 
     loadingWrap: {
+      marginTop: 10,
       backgroundColor: colors.card,
       borderRadius: 18,
       padding: 18,
@@ -224,63 +250,84 @@ const styles = (colors) =>
       borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
-      marginTop: 6,
+      gap: 10,
     },
+    loadingText: { color: colors.subText, fontWeight: "800" },
 
-    grid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 12,
-      marginTop: 6,
-    },
+    grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 10 },
 
-    card: {
+    statCard: {
       width: "48%",
       backgroundColor: colors.card,
-      borderRadius: 18,
+      borderRadius: 20,
       padding: 14,
       borderWidth: 1,
       borderColor: colors.border,
+      ...Platform.select({
+        ios: { shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 6 } },
+        android: { elevation: 1 },
+      }),
     },
-    cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
-    iconBubble: {
-      width: 34,
-      height: 34,
-      borderRadius: 12,
+    statTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+    statIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 14,
       backgroundColor: colors.soft,
+      borderWidth: 1,
+      borderColor: colors.border,
       alignItems: "center",
       justifyContent: "center",
+    },
+    statTitle: { color: colors.subText, fontWeight: "900" },
+    statValue: { marginTop: 12, color: colors.text, fontSize: 28, fontWeight: "900" },
+
+    barTrack: {
+      marginTop: 12,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: colors.soft,
       borderWidth: 1,
       borderColor: colors.border,
+      overflow: "hidden",
     },
-    cardTitle: { color: colors.subText, fontWeight: "800" },
-    cardValue: { marginTop: 10, color: colors.text, fontSize: 26, fontWeight: "900" },
+    barFill: { height: "100%", width: "35%", backgroundColor: colors.primary, opacity: 0.35 },
 
-    section: { marginTop: 18 },
-    sectionTitle: { color: colors.text, fontWeight: "900", marginBottom: 10, fontSize: 14 },
-
-    primaryBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      backgroundColor: colors.primary,
-      padding: 16,
-      borderRadius: 18,
-    },
-    primaryTitle: { color: "#fff", fontWeight: "900", fontSize: 16 },
-    primarySub: { color: "#fff", opacity: 0.9, marginTop: 3, fontWeight: "700" },
-
-    secondaryBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      backgroundColor: colors.card,
-      padding: 16,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
+    actionsCard: {
       marginTop: 10,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 22,
+      padding: 10,
     },
-    secondaryTitle: { color: colors.text, fontWeight: "900", fontSize: 16 },
-    secondarySub: { color: colors.subText, marginTop: 3, fontWeight: "700" },
+    actionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      padding: 12,
+      borderRadius: 18,
+    },
+    actionRowPrimary: {
+      backgroundColor: colors.soft,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 8,
+    },
+    actionIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 16,
+      backgroundColor: colors.soft,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionIconPrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    actionTitle: { color: colors.text, fontWeight: "900", fontSize: 15 },
+    actionSub: { marginTop: 4, color: colors.subText, fontWeight: "800", lineHeight: 18 },
   });
