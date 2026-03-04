@@ -84,3 +84,21 @@ Install backend dependencies
 
 cd backend
 npm install
+# Environment Setup
+
+Create a `.env` file inside the backend folder:
+
+
+PORT=4000
+DB_USER=sa
+DB_PASSWORD=*******
+DB_SERVER=localhost
+DB_NAME=SmartReports
+
+# Running the Project
+
+Start backend server
+
+
+cd backend
+npm run dev
