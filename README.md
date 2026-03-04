@@ -76,13 +76,14 @@ Clone the repository
 git clone https://github.com/Muhanad705/project.git
 
 
-Install frontend dependencies
+#Install frontend dependencies
 
 npm install
 
-Install backend dependencies
+#Install backend dependencies
 
 cd backend
+
 npm install
 # Environment Setup
 
@@ -102,3 +103,10 @@ Start backend server
 
 cd backend
 npm run dev
+
+# Future Improvements
+
+- Push Notifications
+- Real-time report updates
+- Map visualization
+- Admin web dashboard
