@@ -94,7 +94,7 @@ PORT=4000
 
 DB_USER=sa
 
-DB_PASSWORD=*******
+DB_PASSWORD=123456
 
 DB_SERVER=localhost
 
