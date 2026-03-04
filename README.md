@@ -73,4 +73,14 @@ Database
 # Installation
 
 Clone the repository
+git clone https://github.com/Muhanad705/project.git
 
+
+Install frontend dependencies
+
+npm install
+
+Install backend dependencies
+
+cd backend
+npm install
