@@ -127,7 +127,7 @@ exports.markAllRead = async (req, res) => {
   }
 };
 
-// ✅ DELETE /api/notifications/:id
+//  DELETE /api/notifications/:id
 exports.removeOne = async (req, res) => {
   const id = String(req.params?.id || "").trim();
   if (!isGuid(id)) return res.status(400).json({ message: "id غير صحيح" });
@@ -164,8 +164,8 @@ exports.removeOne = async (req, res) => {
   }
 };
 
-// ✅ DELETE /api/notifications/my/:userId (قديم)
-// ✅ DELETE /api/notifications/my        (جديد)
+//  DELETE /api/notifications/my/:userId (قديم)
+//  DELETE /api/notifications/my        (جديد)
 exports.clearAll = async (req, res) => {
   const userId = resolveUserId(req);
   if (!userId) return res.status(400).json({ message: "userId غير صحيح" });

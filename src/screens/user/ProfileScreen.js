@@ -22,7 +22,7 @@ import { API_BASE_URL } from "../../services/api";
 
 const PROFILE_KEY = "local_user_profile";
 
-// ✅ Demo fallback (لو ما عندك endpoints جاهزة للـ password)
+//  Demo fallback (لو ما عندك endpoints جاهزة للـ password)
 const KEY_PASSWORD = "security_password_demo";
 const KEY_PW_RESET_PENDING = "pw_reset_pending_demo";
 
@@ -65,7 +65,7 @@ function normalizeProfile(raw) {
 }
 
 // =====================
-// ✅ Password API tries
+//  Password API tries
 // =====================
 async function apiPostTry(paths, body) {
   let lastErr = null;
@@ -126,10 +126,10 @@ export default function ProfileScreen({ navigation }) {
       wrongCode: "الكود غير صحيح.",
       weakPw: "كلمة المرور لازم 8+ وتحتوي كبير/صغير/رقم/رمز.",
       mismatch: "كلمتا المرور غير متطابقتين.",
-      updated: "تم تحديث كلمة المرور بنجاح ✅",
+      updated: "تم تحديث كلمة المرور بنجاح ",
 
       apiNotReady:
-        "ملاحظة: ما لقيت endpoint جاهز لتغيير كلمة المرور في الباك-إند، فاشتغلت بوضع (تجريبي) داخل التطبيق.",
+        "ملاحظة: ما لقيت endpoint جاهز لتغيير كلمة المرور في الباك-إند، فاشتغلت بوضع تجريبي داخل التطبيق.",
     }),
     []
   );
@@ -172,7 +172,7 @@ export default function ProfileScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      // ✅ كل ما تدخل الصفحة تتحدث تلقائياً
+      //  كل ما تدخل الصفحة تتحدث تلقائياً
       loadProfile();
     }, [loadProfile])
   );
@@ -209,7 +209,7 @@ export default function ProfileScreen({ navigation }) {
 
     setSending(true);
     try {
-      // ✅ نحاول API أول (لو عندك جاهز)
+      //  نحاول API أول (لو عندك جاهز)
       const apiRes = await apiPostTry(
         ["/auth/send-reset-code", "/auth/forgot-password", "/auth/request-reset", "/users/send-reset-code"],
         { email }
@@ -221,7 +221,7 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
 
-      // ✅ fallback demo
+      //  fallback demo
       const generated = genCode6();
       pendingCodeRef.current = generated;
 
@@ -249,7 +249,7 @@ export default function ProfileScreen({ navigation }) {
     if (!isStrongPassword(newPw)) return Alert.alert(T.verifyTitle, T.weakPw);
     if (newPw !== confirmPw) return Alert.alert(T.verifyTitle, T.mismatch);
 
-    // ✅ نحاول API أول
+    //  نحاول API أول
     const apiRes = await apiPostTry(
       ["/auth/reset-password", "/auth/change-password", "/users/reset-password", "/users/change-password"],
       { email, code: code.trim(), newPassword: newPw }
@@ -261,7 +261,7 @@ export default function ProfileScreen({ navigation }) {
       return;
     }
 
-    // ✅ fallback demo (يطابق وضعك السابق)
+    //  fallback demo (يطابق وضعك السابق)
     const expected = pendingCodeRef.current;
     if (!expected) return Alert.alert(T.verifyTitle, T.enterCode);
     if (code.trim() !== String(expected)) return Alert.alert(T.verifyTitle, T.wrongCode);

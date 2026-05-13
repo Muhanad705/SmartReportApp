@@ -112,7 +112,7 @@ export default function AdminDashboardScreen({ navigation }) {
       try {
         const { token, role } = await getSession();
 
-        // ✅ حماية: الأدمن فقط
+        //  حماية: الأدمن فقط
         if (role !== "admin") {
           if (!silent) Alert.alert("الصلاحيات", "هذه الصفحة للأدمن فقط. بيتم تسجيل خروجك.");
           await logout();
@@ -166,7 +166,7 @@ export default function AdminDashboardScreen({ navigation }) {
     [getSession, logout]
   );
 
-  // ✅ تحديث تلقائي: أول مرة + عند الرجوع للصفحة
+  //  تحديث تلقائي: أول مرة + عند الرجوع للصفحة
   useEffect(() => {
     fetchStats({ silent: true });
 

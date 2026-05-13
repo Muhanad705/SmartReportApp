@@ -12,26 +12,26 @@ export default function UserSideMenu({ visible, onClose, onGo }) {
         <Text style={styles.title}>القائمة</Text>
        
         <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate("Profile"); }}>
-          <Text style={styles.menuItemText}>👤 ملفي الشخصي</Text>
+          <Text style={styles.menuItemText}> ملفي الشخصي</Text>
           <Text style={styles.menuItemArrow}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.item} onPress={() => onGo("MyReports")}>
-          <Text style={styles.itemText}>📄 بلاغاتي</Text>
+          <Text style={styles.itemText}> بلاغاتي</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.item} onPress={() => onGo("EmergencyNumbers")}>
-          <Text style={styles.itemText}>☎️ أرقام مهمة</Text>
+          <Text style={styles.itemText}> أرقام مهمة</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate("Settings"); }}>
-          <Text style={styles.menuItemText}>⚙️ الإعدادات</Text>
+          <Text style={styles.menuItemText}> الإعدادات</Text>
           <Text style={styles.menuItemArrow}>›</Text>
         </TouchableOpacity>
 
 
         <TouchableOpacity style={[styles.item, styles.logout]} onPress={() => onGo("Logout")}>
-          <Text style={[styles.itemText, { color: "#b00020" }]}>🚪 تسجيل الخروج</Text>
+          <Text style={[styles.itemText, { color: "#b00020" }]}> تسجيل الخروج</Text>
         </TouchableOpacity>
       </View>
     </View>

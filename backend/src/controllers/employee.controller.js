@@ -113,7 +113,7 @@ exports.getReportDetails = async (req, res) => {
         ORDER BY CreatedAt DESC
       `);
 
-    // ✅ سجل تغيير الحالة مع اسم اللي غيّرها
+    //  سجل تغيير الحالة مع اسم اللي غيّرها
     const historyR = await pool
       .request()
       .input("ReportId", sql.UniqueIdentifier, reportId)
@@ -193,7 +193,7 @@ exports.updateReportStatus = async (req, res) => {
         WHERE Id = @Id
       `);
 
-    // ✅ history بدون Note نهائيًا (عشان ما يرجع خطأ/قيود)
+    
     await new sql.Request(tx)
       .input("ReportId", sql.UniqueIdentifier, reportId)
       .input("ChangedBy", sql.UniqueIdentifier, employeeId)
@@ -210,13 +210,13 @@ exports.updateReportStatus = async (req, res) => {
       let message = "تم تحديث حالة البلاغ";
 
       if (nextStatus === "accepted") {
-        title = "تم حل البلاغ ✅";
+        title = "تم حل البلاغ ";
         message = "تمت معالجة البلاغ بنجاح";
       } else if (nextStatus === "rejected") {
-        title = "تم رفض البلاغ ❌";
+        title = "تم رفض البلاغ ";
         message = "تم رفض البلاغ من الجهة المختصة";
       } else if (nextStatus === "in_progress") {
-        title = "جاري معالجة البلاغ ⏳";
+        title = "جاري معالجة البلاغ ";
         message = "تم البدء في معالجة البلاغ";
       }
 

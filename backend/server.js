@@ -36,7 +36,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // --------------------
 // Routes
 // --------------------
-app.get("/", (_, res) => res.send("API is running ✅"));
+app.get("/", (_, res) => res.send("API is running "));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/departments", departmentRoutes);
@@ -72,4 +72,4 @@ app.use((err, req, res, next) => {
 // Listen
 // --------------------
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`✅ API running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(` API running on http://localhost:${PORT}`));

@@ -47,7 +47,7 @@ export default function ManagerReports({ navigation }) {
   const { colors } = useThemeApp();
 
   const [status, setStatus] = useState("");
-  const [query, setQuery] = useState(""); // ✅ بحث بالاسم أو الجوال
+  const [query, setQuery] = useState(""); //  بحث بالاسم أو الجوال
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState([]);
@@ -76,7 +76,7 @@ export default function ManagerReports({ navigation }) {
 
   const s = useMemo(() => styles(colors), [colors]);
 
-  // ✅ فلترة البحث (محليًا)
+  
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -128,7 +128,7 @@ export default function ManagerReports({ navigation }) {
 
   return (
     <View style={s.container}>
-      {/* ✅ Search */}
+      {/*  Search */}
       <View style={s.searchBox}>
         <Ionicons name="search" size={18} color={colors.subText} />
         <TextInput

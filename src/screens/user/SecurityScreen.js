@@ -16,13 +16,13 @@ import * as LocalAuthentication from "expo-local-authentication";
 
 import { useThemeApp } from "../../theme/ThemeContext";
 
-// ✅ نفس المفتاح اللي بنربطه في LoginScreen
+
 const KEY_BIOMETRICS = "settings_biometric_login"; // "1" | "0"
 
-// ✅ إعداد الخروج التلقائي (التطبيق الفعلي نركّبه في RootStack بعدين)
+//  إعداد الخروج التلقائي 
 const KEY_AUTO_LOGOUT = "security_auto_logout_enabled"; // "1" | "0"
 
-// (اختياري) مدة عدم النشاط بالدقائق
+//  مدة عدم النشاط بالدقائق
 const KEY_AUTO_LOGOUT_MINUTES = "security_auto_logout_minutes"; // e.g. "10"
 
 export default function SecurityScreen({ navigation }) {
@@ -38,7 +38,7 @@ export default function SecurityScreen({ navigation }) {
       autoLogout: "تسجيل خروج تلقائي",
       autoLogoutHint: "تسجيل خروج بعد فترة عدم نشاط (نفعّله على مستوى التطبيق)",
       sessions: "الجلسات النشطة",
-      sessionsHint: "قريبًا (تحتاج Backend لإدارة الأجهزة)",
+      sessionsHint: "قريبًا ",
       done: "تم",
       close: "إغلاق",
       noteTitle: "تنبيه",
@@ -48,7 +48,7 @@ export default function SecurityScreen({ navigation }) {
       enabledMsg: "تم تفعيل تسجيل الدخول بالبصمة/Face ID.",
       disabledMsg: "تم إيقاف تسجيل الدخول بالبصمة/Face ID.",
       soon: "قريبًا",
-      sessionsSoonMsg: "إدارة الجلسات تحتاج Backend (Tokens/Devices). بنفعلها لاحقًا.",
+      sessionsSoonMsg: " بنفعلها لاحقًا",
     }),
     []
   );
@@ -99,7 +99,7 @@ export default function SecurityScreen({ navigation }) {
           return;
         }
 
-        // ✅ تأكيد بالبصمة/الوجه عند التفعيل
+        //  تأكيد بالبصمة/الوجه عند التفعيل
         const auth = await LocalAuthentication.authenticateAsync({
           promptMessage: "تأكيد تفعيل البصمة/Face ID",
           cancelLabel: "إلغاء",
@@ -133,7 +133,7 @@ export default function SecurityScreen({ navigation }) {
     setAutoLogoutEnabled(v);
     await AsyncStorage.setItem(KEY_AUTO_LOGOUT, v ? "1" : "0");
 
-    // مدة افتراضية (لو تبغى لاحقًا نضيف اختيار مدة)
+    
     await AsyncStorage.setItem(KEY_AUTO_LOGOUT_MINUTES, String(autoLogoutMinutes || 10));
   };
 
@@ -150,7 +150,7 @@ export default function SecurityScreen({ navigation }) {
           <Text style={styles.title}>{C.title}</Text>
           <Text style={styles.sub}>{C.sub}</Text>
 
-          {/* ✅ البصمة/الوجه */}
+          {/*  البصمة/الوجه */}
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <View style={styles.iconBox}>
@@ -171,7 +171,7 @@ export default function SecurityScreen({ navigation }) {
             </View>
           </View>
 
-          {/* ✅ الخروج التلقائي (إعداد فعلي + تطبيقه بنربطه في RootStack) */}
+          {/*  الخروج التلقائي  */}
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <View style={styles.iconBox}>
@@ -194,7 +194,7 @@ export default function SecurityScreen({ navigation }) {
             </View>
           </View>
 
-          {/* ✅ الجلسات (قريبًا) */}
+          {/* الجلسات  */}
           <View style={styles.section}>
             <TouchableOpacity style={styles.actionRow} activeOpacity={0.9} onPress={onSessionsPress}>
               <View style={styles.iconBox}>

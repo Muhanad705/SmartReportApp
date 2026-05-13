@@ -122,7 +122,7 @@ function SectionHeader({ icon, title, colors }) {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  // ✅ TopBar نفس ستايل إنشاء حساب
+ 
   topBar: {
     paddingHorizontal: 14,
     paddingTop: 14,

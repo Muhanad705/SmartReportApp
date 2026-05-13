@@ -117,7 +117,7 @@ export default function SignUpScreen({ navigation }) {
         return Alert.alert("تنبيه", data?.message || "تعذر إنشاء الحساب. جرّب مرة ثانية.");
       }
 
-      // ✅ مهم: لا تسجيل دخول تلقائي. نودّيه لصفحة الدخول فقط.
+     
       Alert.alert("تم ", "تم إنشاء الحساب بنجاح. الآن سجّل دخولك.", [
         {
           text: "تسجيل الدخول",
@@ -125,7 +125,7 @@ export default function SignUpScreen({ navigation }) {
         },
       ]);
     } catch (e) {
-      Alert.alert("خطأ", "ما قدرنا نتصل بالسيرفر. تأكد إن backend شغال وIP والمنفذ صحيحين.");
+      Alert.alert( "ما قدرنا نتصل بالسيرفر ");
     }
   };
 

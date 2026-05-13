@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // ✅ انتبه: API_BASE_URL عندك فيه /api بالفعل
+     
       const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,16 +73,16 @@ export default function ForgotPasswordScreen({ navigation }) {
       // للتجربة: نعرض التوكن (لأن الإيميل الحقيقي مو شغال)
       if (data?.resetToken) {
         setResetToken(String(data.resetToken));
-        Alert.alert("تم ✅", "تم إنشاء طلب الاستعادة.\n(التوكن ظهر للتجربة)", [
+        Alert.alert("تم ", "تم إنشاء طلب الاستعادة.\n(التوكن ظهر للتجربة)", [
           { text: "تمام", onPress: () => setStep(2) },
         ]);
       } else {
-        Alert.alert("تم ✅", data?.message || "تم إنشاء طلب الاستعادة.", [
+        Alert.alert("تم ", data?.message || "تم إنشاء طلب الاستعادة.", [
           { text: "تمام", onPress: () => setStep(2) },
         ]);
       }
     } catch (err) {
-      Alert.alert("خطأ", "ما قدرنا نتصل بالسيرفر. تأكد إن backend شغال وIP والمنفذ صحيحين.");
+      Alert.alert( "ما قدرنا نتصل بالسيرفر");
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         return Alert.alert("تنبيه", data?.message || "تعذر تغيير كلمة المرور.");
       }
 
-      Alert.alert("تم ✅", data?.message || "تم تحديث كلمة المرور بنجاح.", [
+      Alert.alert("تم ", data?.message || "تم تحديث كلمة المرور بنجاح.", [
         { text: "تسجيل الدخول", onPress: () => navigation.navigate("Login") },
       ]);
     } catch {

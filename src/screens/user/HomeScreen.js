@@ -49,7 +49,7 @@ export default function HomeScreen({ navigation }) {
   const isDark = mode === "dark";
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [unreadCount] = useState(3);
+  const [unreadCount] = useState(0);
 
   const [depsLoading, setDepsLoading] = useState(true);
   const [deps, setDeps] = useState([]);
@@ -151,7 +151,7 @@ export default function HomeScreen({ navigation }) {
         if (!mounted) return;
         setDeps([]);
         setDepsError(e?.message || "تعذر جلب الجهات");
-        Alert.alert("تنبيه", "ما قدرنا نجيب الجهات من السيرفر. تأكد أن backend شغال + API_BASE_URL صح.");
+        Alert.alert("تنبيه", "ما قدرنا نجيب الجهات من السيرفر. ");
       } finally {
         if (mounted) setDepsLoading(false);
       }

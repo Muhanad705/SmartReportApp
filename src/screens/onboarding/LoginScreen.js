@@ -41,7 +41,7 @@ function normalizeUserId(user) {
   return user?.userId || user?.UserId || user?.UserID || user?.id || user?.Id || null;
 }
 
-// ✅ يبني رابط صح سواء API_BASE_URL فيه /api أو لا
+
 function buildAuthLoginUrl() {
   const base = String(API_BASE_URL || "").replace(/\/+$/g, ""); // remove trailing /
   // لو القاعدة تنتهي بـ /api => نضيف /auth/login
@@ -160,7 +160,7 @@ export default function LoginScreen({ navigation }) {
       const role = await saveSession({ token, user, userId });
       goRoot(role);
     } catch (e) {
-      Alert.alert("خطأ", "ما قدرنا نتصل بالسيرفر. تأكد إن backend شغال وAPI_BASE_URL صحيح.");
+      Alert.alert( "ما قدرنا نتصل بالسيرفر ");
     } finally {
       setLoadingLogin(false);
     }

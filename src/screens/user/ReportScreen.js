@@ -241,12 +241,10 @@ export default function ReportScreen({ navigation, route }) {
         departmentId,
         description: description.trim(),
 
-        // ✅ نرسل الاثنين لتفادي اختلافات الباك-إند
+        //  نرسل الاثنين لتفادي اختلافات الباك-إند
         lat: coords.latitude,
         lng: coords.longitude,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-
+       
         media: mediaPayload,
         Media: mediaPayload,
       };

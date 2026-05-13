@@ -183,9 +183,7 @@ exports.createReport = async (req, res) => {
       note: null,
     });
 
-    // ==========================================
-    // ✅ 4) إشعار "تم استلام البلاغ"
-    // ==========================================
+    
     await insertNotification(tx, {
       userId: UserId,
       reportId: ReportId,
@@ -414,7 +412,7 @@ exports.updateStatus = async (req, res) => {
         title = "تم رفض البلاغ ";
         message = "تم رفض البلاغ من الجهة المختصة";
       } else if (Status === "in_progress") {
-        title = "جاري معالجة البلاغ ⏳";
+        title = "جاري معالجة البلاغ ";
         message = "تم البدء في معالجة البلاغ";
       }
 

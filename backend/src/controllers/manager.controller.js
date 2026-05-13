@@ -455,7 +455,7 @@ exports.getReportDetails = async (req, res) => {
           h.ChangedBy,
           h.FromStatus,
           h.ToStatus,
-          h.Note,
+         
           h.ChangedAt,
           up.FullName AS ChangedByName
         FROM dbo.ReportStatusHistory h
@@ -535,12 +535,12 @@ exports.updateReportStatus = async (req, res) => {
         .input("ChangedBy", sql.UniqueIdentifier, managerId)
         .input("FromStatus", sql.NVarChar(20), oldStatus)
         .input("ToStatus", sql.NVarChar(20), nextStatus)
-        .input("Note", sql.NVarChar(sql.MAX), null)
+        
         .query(`
           INSERT INTO dbo.ReportStatusHistory
-            (Id, ReportId, ChangedBy, FromStatus, ToStatus, Note, ChangedAt)
+            (Id, ReportId, ChangedBy, FromStatus, ToStatus, ChangedAt)
           VALUES
-            (NEWID(), @ReportId, @ChangedBy, @FromStatus, @ToStatus, @Note, SYSDATETIME())
+            (NEWID(), @ReportId, @ChangedBy, @FromStatus, @ToStatus, SYSDATETIME())
         `);
     } catch (_) {}
 

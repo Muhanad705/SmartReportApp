@@ -61,10 +61,10 @@ export default function ManagerReportDetails({ route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState(null);
 
-  // ✅ تغيير حالة
+  //  تغيير حالة
   const [changing, setChanging] = useState(false);
 
-  // ✅ عرض صورة داخل Modal
+  //  عرض صورة داخل Modal
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 

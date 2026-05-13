@@ -1,10 +1,10 @@
 // src/services/api.js
  
-// IP جهازك (من ipconfig)
-const DEV_LAN_IP = "192.168.100.144";
+
+const DEV_LAN_IP = "12.50.14.11";
 const PORT = 4000;
 
-// base url للـ API (لاحظ /api)
+// base url للـ API 
 export const API_BASE_URL = `http://${DEV_LAN_IP}:${PORT}/api`;
 
 // origin لعرض الصور /uploads

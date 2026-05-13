@@ -194,7 +194,7 @@ function deptIconByName(name) {
   return "alert-circle-outline";
 }
 
-// ✅ المسار الصحيح عندك في الباك-إند:
+
 // GET /api/reports/my/:userId
 async function fetchMyReportsFromAPI({ userId, token }) {
   const url = `${API_BASE_URL}/reports/my/${userId}`;
@@ -476,7 +476,7 @@ export default function MyReportsScreen({ navigation }) {
                   ) : (
                     <View style={[styles.videoStub, { borderColor: colors.border, backgroundColor: colors.soft }]}>
                       <Ionicons name="videocam-outline" size={22} color={colors.text} />
-                      <Text style={[styles.videoStubText, { color: colors.subText }]}>فيديو محدد ✅ (المعاينة نضيفها لاحقًا)</Text>
+                      <Text style={[styles.videoStubText, { color: colors.subText }]}>فيديو محدد  (المعاينة نضيفها لاحقًا)</Text>
                     </View>
                   )}
                 </>

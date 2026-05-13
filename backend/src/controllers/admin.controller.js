@@ -91,7 +91,7 @@ exports.createManager = async (req, res) => {
 
     if (exists.recordset.length) return res.status(409).json({ message: "البريد مستخدم من قبل" });
 
-    // ✅ لو departmentId مرسل، تأكد الجهة موجودة
+    //  لو departmentId مرسل، تأكد الجهة موجودة
     if (departmentId) {
       const deptCheck = await pool
         .request()
@@ -125,7 +125,7 @@ exports.createManager = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-// ✅ تعديل مدير (تعديل جزئي: الاسم/البريد/الجوال/الجهة/كلمة المرور اختيارية)
+//  تعديل مدير (تعديل جزئي: الاسم/البريد/الجوال/الجهة/كلمة المرور اختيارية)
 exports.updateManager = async (req, res) => {
   try {
     const { userId } = req.params || {};

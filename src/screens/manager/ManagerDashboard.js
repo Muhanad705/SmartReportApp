@@ -45,7 +45,7 @@ export default function ManagerDashboard({ navigation }) {
     load(false);
   }, [load]);
 
-  // ✅ يظهر الأزرار فقط لو الشاشات موجودة في Stack الحالي
+  //  يظهر الأزرار فقط لو الشاشات موجودة في Stack الحالي
   const canGo = useMemo(() => {
     const state = navigation.getState?.();
     const names = (state?.routeNames || state?.routes?.map((r) => r.name) || []).filter(Boolean);

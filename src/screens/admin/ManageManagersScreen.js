@@ -50,7 +50,7 @@ export default function ManageManagersScreen({ navigation }) {
 
   const [modalOpen, setModalOpen] = useState(false);
 
-  // ✅ وضع التعديل
+  //  وضع التعديل
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
@@ -154,17 +154,17 @@ export default function ManageManagersScreen({ navigation }) {
       fullName: String(item.FullName || item.fullName || "").trim(),
       email: normEmail(item.Email || item.email || ""),
       phone: onlyDigits(item.Phone || item.phone || ""),
-      password: "", // ✅ لا نعرض القديم
+      password: "", //  لا نعرض القديم
       departmentId: String(item.DepartmentId || item.departmentId || ""),
     });
     setEditingId(item.UserId);
     setModalOpen(true);
   }, []);
 
-  // ✅ الهيدر: بدون زر إضافة
+  
   useLayoutEffect(() => {
     navigation?.setOptions?.({
-      title: "إدارة المدراء",
+      title: "إدارة",
       headerShown: true,
       headerBackTitleVisible: false,
       headerRight: undefined,
@@ -212,7 +212,7 @@ export default function ManageManagersScreen({ navigation }) {
     bootstrap();
   }, [bootstrap]);
 
-  // ✅ فالتحرير: كلمة المرور اختيارية
+  //  فالتحرير: كلمة المرور اختيارية
   const validate = useCallback(() => {
     const fullName = String(form.fullName || "").trim();
     const email = normEmail(form.email);
@@ -225,7 +225,7 @@ export default function ManageManagersScreen({ navigation }) {
     if (!phone || phone.length < 9) return "رقم الجوال غير صحيح";
     if (!departmentId) return "اختر الجهة";
 
-    // إنشاء: لازم كلمة مرور قوية
+   
     if (!editingId && password.length < 8) return "كلمة المرور ضعيفة (8 أحرف+)";
 
     // تعديل: لو كتب كلمة مرور لازم تكون قوية
@@ -247,7 +247,7 @@ export default function ManageManagersScreen({ navigation }) {
         departmentId: String(form.departmentId),
       };
 
-      // ✅ كلمة المرور: أرسلها فقط إذا المستخدم كتبها
+      //  كلمة المرور: أرسلها فقط إذا المستخدم كتبها
       const password = String(form.password || "");
       const payload = password ? { ...basePayload, password } : basePayload;
 
@@ -257,7 +257,7 @@ export default function ManageManagersScreen({ navigation }) {
         ? `${API_BASE_URL}/admin/managers/${editingId}`
         : `${API_BASE_URL}/admin/managers`;
 
-      // مهم: إن كان الباكند ما يدعم PATCH استخدم PUT
+     
       const method = isEdit ? "PATCH" : "POST";
 
       const res = await fetch(url, {
