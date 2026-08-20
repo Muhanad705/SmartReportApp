@@ -85,20 +85,6 @@ npm install
 cd backend
 
 npm install
-# Environment Setup
-
-Create a `.env` file inside the backend folder:
-
-
-PORT=4000
-
-DB_USER=sa
-
-DB_PASSWORD=123456
-
-DB_SERVER=localhost
-
-DB_NAME=SmartReports
 
 # Running the Project
 
